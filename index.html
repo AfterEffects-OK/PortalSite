@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>講義ポータルサイト</title>
+    <!-- Tailwind CSS CDNを読み込み -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* フォントをGoogle FontsのInterに設定 */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* ダークグレーの背景 */
+            color: #e2e8f0; /* 明るいテキストカラー */
+        }
+        /* ホバー時のアクションを滑らかにするためのトランジション */
+        .card-link {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+        }
+        /* マウスホバーでコメントを表示する機能 */
+        .card-link::before {
+            content: attr(data-comment); /* data-comment属性の内容を表示 */
+            position: absolute;
+            top: -32px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .card-link:hover::before {
+            opacity: 1;
+        }
+        .filter-button.active {
+            background-color: #f59e0b;
+            color: #1a202c;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+    <!-- ヘッダーセクション -->
+    <header class="text-center my-8">
+        <!-- タイトルと画像を中央に並べて配置 -->
+        <div class="flex items-center justify-center space-x-4">
+            <!-- 左側の画像: idとsrcを動的に設定 -->
+            <img id="header-left-img" src="" alt="左側の画像" class="h-16 w-16 rounded-full">
+            <h1 class="text-4xl sm:text-5xl font-extrabold text-amber-400">講義ポータルサイト</h1>
+            <!-- 右側の画像: idとsrcを動的に設定 -->
+            <img id="header-right-img" src="" alt="右側の画像" class="h-16 w-16 rounded-full">
+        </div>
+        <p class="mt-2 text-xl sm:text-2xl font-semibold">（科目名）</p>
+    </header>
+
+    <!-- メインコンテンツグリッド -->
+    <main class="max-w-6xl mx-auto">
+        
+        <!-- お知らせセクション -->
+        <section class="bg-gray-800 p-6 sm:p-8 rounded-xl shadow-lg my-8">
+            <h2 class="text-3xl font-bold mb-4 text-amber-400">お知らせ</h2>
+
+            <!-- フィルタリングボタン -->
+            <div class="flex flex-wrap gap-2 mb-6">
+                <button id="filter-all" class="filter-button bg-gray-600 text-gray-200 px-4 py-2 rounded-lg font-semibold hover:bg-amber-400 hover:text-gray-900 transition-colors duration-200 active">全員</button>
+                <button id="filter-1st" class="filter-button bg-gray-600 text-gray-200 px-4 py-2 rounded-lg font-semibold hover:bg-amber-400 hover:text-gray-900 transition-colors duration-200">1年生</button>
+                <button id="filter-2nd" class="filter-button bg-gray-600 text-gray-200 px-4 py-2 rounded-lg font-semibold hover:bg-amber-400 hover:text-gray-900 transition-colors duration-200">2年生</button>
+            </div>
+
+            <ul id="announcements-list" class="space-y-3 text-lg">
+                <li class="p-3 bg-gray-700 rounded-lg text-center">お知らせを読み込み中...</li>
+            </ul>
+        </section>
+
+        <!-- リンク集セクション -->
+        <section class="bg-gray-800 p-6 sm:p-8 rounded-xl shadow-lg my-8">
+            <h2 class="text-3xl font-bold mb-4 text-amber-400">便利なリンク</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                <!-- リンクカード：YouTube -->
+                <a href="https://www.youtube.com/@examplechannel" target="_blank" rel="noopener noreferrer"
+                   class="card-link bg-gray-700 rounded-xl overflow-hidden shadow-md hover:scale-105 hover:shadow-2xl transition-all duration-300"
+                   data-comment="講義の補足動画が見られます">
+                    <img id="youtube-img" src="" alt="YouTubeチャンネルの画像" class="w-full h-48 object-cover">
+                    <div class="p-4">
+                        <h3 class="font-bold text-xl mb-1 group-hover:text-amber-400">YouTube チャンネル</h3>
+                        <p class="text-gray-400 text-sm">講義内容の復習や予習に役立つ動画を配信しています。</p>
+                    </div>
+                </a>
+                
+                <!-- 新規追加：リンクカード：Spotify Podcast -->
+                <a href="https://open.spotify.com/show/yourpodcastlink" target="_blank" rel="noopener noreferrer"
+                   class="card-link bg-gray-700 rounded-xl overflow-hidden shadow-md hover:scale-105 hover:shadow-2xl transition-all duration-300"
+                   data-comment="音声で講義を聞き直せます">
+                    <img id="spotify-img" src="" alt="Spotify Podcastの画像" class="w-full h-48 object-cover">
+                    <div class="p-4">
+                        <h3 class="font-bold text-xl mb-1 group-hover:text-amber-400">Spotify Podcast</h3>
+                        <p class="text-gray-400 text-sm">講義内容を音声で解説しているポッドキャスト。移動中の予習復習にどうぞ。</p>
+                    </div>
+                </a>
+
+                <!-- リンクカード：X (旧Twitter) -->
+                <a href="https://twitter.com/example_prof" target="_blank" rel="noopener noreferrer"
+                   class="card-link bg-gray-700 rounded-xl overflow-hidden shadow-md hover:scale-105 hover:shadow-2xl transition-all duration-300"
+                   data-comment="最新情報をチェックできます">
+                    <img id="x-img" src="" alt="Xアカウントの画像" class="w-full h-48 object-cover">
+                    <div class="p-4">
+                        <h3 class="font-bold text-xl mb-1 group-hover:text-amber-400">X (旧Twitter)</h3>
+                        <p class="text-gray-400 text-sm">休講情報や課題のヒントなど、リアルタイムな情報を発信。</p>
+                    </div>
+                </a>
+                
+                <!-- リンクカード：Google Forms -->
+                <a href="https://forms.gle/yourgoogleformlink" target="_blank" rel="noopener noreferrer"
+                   class="card-link bg-gray-700 rounded-xl overflow-hidden shadow-md hover:scale-105 hover:shadow-2xl transition-all duration-300"
+                   data-comment="質問や意見を送信できます">
+                    <img id="forms-img" src="" alt="Googleフォームの画像" class="w-full h-48 object-cover">
+                    <div class="p-4">
+                        <h3 class="font-bold text-xl mb-1 group-hover:text-amber-400">質問フォーム</h3>
+                        <p class="text-gray-400 text-sm">講義に関する質問やフィードバックはこちらからお願いします。</p>
+                    </div>
+                </a>
+
+                <!-- リンクカード：講義資料 -->
+                <a href="https://drive.google.com/drive/folders/yourdrivefolder" target="_blank" rel="noopener noreferrer"
+                   class="card-link bg-gray-700 rounded-xl overflow-hidden shadow-md hover:scale-105 hover:shadow-2xl transition-all duration-300"
+                   data-comment="講義資料をダウンロードできます">
+                    <img id="materials-img" src="" alt="講義資料の画像" class="w-full h-48 object-cover">
+                    <div class="p-4">
+                        <h3 class="font-bold text-xl mb-1 group-hover:text-amber-400">講義資料</h3>
+                        <p class="text-gray-400 text-sm">PDF形式のスライドや配布資料はこちらからアクセスしてください。</p>
+                    </div>
+                </a>
+
+                <!-- リンクカード：シラバス -->
+                <a href="https://syllabus.univ.ac.jp/yoursyllabuslink" target="_blank" rel="noopener noreferrer"
+                   class="card-link bg-gray-700 rounded-xl overflow-hidden shadow-md hover:scale-105 hover:shadow-2xl transition-all duration-300"
+                   data-comment="講義計画の詳細を確認できます">
+                    <img id="syllabus-img" src="" alt="シラバスの画像" class="w-full h-48 object-cover">
+                    <div class="p-4">
+                        <h3 class="font-bold text-xl mb-1 group-hover:text-amber-400">シラバス</h3>
+                        <p class="text-gray-400 text-sm">授業の目標、評価方法、年間計画などが確認できます。</p>
+                    </div>
+                </a>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- フッター -->
+    <footer class="text-center text-gray-500 text-sm mt-12 mb-4">
+        <p>&copy; 2024 （講義名） All Rights Reserved.</p>
+    </footer>
+
+    <!-- スプレッドシートからお知らせを読み込むJavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // ここにスプレッドシートID、APIキー、および画像IDを設定
+            const SPREADSHEET_ID = '1D4RWhwWAfZpDJ6PZCco8S3Pa2qhfq3IOafST_l52a5E';
+            const API_KEY = 'AIzaSyALQKgx-MON76EkAYTz55XAFnNee-MtH4I';
+
+            // 講義ポータルサイトの各画像のGoogle DriveファイルID
+            const IMAGE_FILE_IDS = {
+                // ヘッダー画像のID
+                headerLeft: 'YOUR_HEADER_LEFT_IMAGE_ID',
+                headerRight: 'YOUR_HEADER_RIGHT_IMAGE_ID',
+                // リンクカード画像のID
+                youtube: 'YOUR_YOUTUBE_IMAGE_ID',
+                spotify: 'YOUR_SPOTIFY_IMAGE_ID',
+                x: 'YOUR_X_IMAGE_ID',
+                forms: 'YOUR_FORMS_IMAGE_ID',
+                materials: 'YOUR_MATERIALS_IMAGE_ID',
+                syllabus: 'YOUR_SYLLABUS_IMAGE_ID'
+            };
+            
+            // Google DriveのファイルIDから直接表示用URLを生成する関数
+            const getDriveDirectUrl = (fileId) => {
+                // プレースホルダーの場合はプレースホルダー画像URLを返す
+                const placeholderIds = Object.values(IMAGE_FILE_IDS);
+                if (!fileId || placeholderIds.includes(fileId)) {
+                    const placeholder = `https://placehold.co/600x400/8b5cf6/ffffff?text=${Object.keys(IMAGE_FILE_IDS).find(key => IMAGE_FILE_IDS[key] === fileId) || 'Image'}`;
+                    return placeholder;
+                }
+                return `https://drive.google.com/uc?export=view&id=${fileId}`;
+            };
+
+            // HTML内のimgタグにIDを設定
+            document.getElementById('header-left-img').src = getDriveDirectUrl(IMAGE_FILE_IDS.headerLeft);
+            document.getElementById('header-right-img').src = getDriveDirectUrl(IMAGE_FILE_IDS.headerRight);
+            document.getElementById('youtube-img').src = getDriveDirectUrl(IMAGE_FILE_IDS.youtube);
+            document.getElementById('spotify-img').src = getDriveDirectUrl(IMAGE_FILE_IDS.spotify);
+            document.getElementById('x-img').src = getDriveDirectUrl(IMAGE_FILE_IDS.x);
+            document.getElementById('forms-img').src = getDriveDirectUrl(IMAGE_FILE_IDS.forms);
+            document.getElementById('materials-img').src = getDriveDirectUrl(IMAGE_FILE_IDS.materials);
+            document.getElementById('syllabus-img').src = getDriveDirectUrl(IMAGE_FILE_IDS.syllabus);
+
+            // スプレッドシートからお知らせを読み込む範囲を指定 (AppSheet IDと表示期間、更新日を追加)
+            const RANGE = 'Sheet1!A2:G';
+            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}?key=${API_KEY}`;
+
+            const announcementsList = document.getElementById('announcements-list');
+            const filterButtons = document.querySelectorAll('.filter-button');
+            let allAnnouncements = [];
+
+
+            // お知らせをスプレッドシートから取得し、保存する関数
+            async function fetchAnnouncements() {
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const data = await response.json();
+                    
+                    if (data.values && data.values.length > 0) {
+                        // 取得したデータをallAnnouncementsに保存
+                        allAnnouncements = data.values.map(row => ({
+                            // スプレッドシートの列とデータ属性を対応付け
+                            appSheetId: row[0],
+                            date: row[1], // B列
+                            content: row[2],
+                            grade: row[3] || '全員', // 学年がない場合は「全員」とする
+                            startDate: row[4], // E列
+                            endDate: row[5],
+                            updatedDate: row[6] // G列
+                        }));
+                        displayAnnouncements('全員'); // 初期表示は「全員」
+                    } else {
+                        announcementsList.innerHTML = '<li class="p-3 bg-gray-700 rounded-lg text-center">現在、お知らせはありません。</li>';
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch announcements:', error);
+                    announcementsList.innerHTML = `<li class="p-3 bg-red-900 text-red-300 rounded-lg text-center">お知らせの読み込みに失敗しました。</li>`;
+                }
+            }
+
+            // お知らせをフィルタリングして表示する関数
+            function displayAnnouncements(filter) {
+                // ボタンのアクティブ状態を更新
+                filterButtons.forEach(button => {
+                    if (button.textContent === filter) {
+                        button.classList.add('active');
+                    } else {
+                        button.classList.remove('active');
+                    }
+                });
+
+                // 既存のリストをクリア
+                announcementsList.innerHTML = '';
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                // フィルタリング
+                const filteredAnnouncements = allAnnouncements.filter(announcement => {
+                    // ①学年でフィルタリング
+                    const announcementGrade = announcement.grade.trim();
+                    const gradeMatch = (filter === '全員' || announcementGrade === filter);
+                    
+                    // ②表示期間でフィルタリング
+                    // YYYY/MM/DD形式をYYYY-MM-DDに変換
+                    const formattedStartDate = announcement.startDate ? announcement.startDate.replace(/\//g, '-') : '';
+                    const formattedEndDate = announcement.endDate ? announcement.endDate.replace(/\//g, '-') : '';
+
+                    const startDate = formattedStartDate ? new Date(formattedStartDate) : null;
+                    const endDate = formattedEndDate ? new Date(formattedEndDate) : null;
+                    
+                    if (endDate) {
+                        // 終了日の時刻を23:59:59に設定して、終了日当日も表示されるようにする
+                        endDate.setHours(23, 59, 59, 999);
+                    }
+                    
+                    const dateMatch = (startDate && endDate) ? (today >= startDate && today <= endDate) : true;
+                    
+                    return gradeMatch && dateMatch;
+                });
+                
+                if (filteredAnnouncements.length > 0) {
+                    filteredAnnouncements.forEach(announcement => {
+                        const listItem = document.createElement('li');
+                        listItem.className = 'p-3 bg-gray-700 rounded-lg';
+                        
+                        // 日付と更新日を表示するコンテナ
+                        const dateContainer = document.createElement('div');
+                        dateContainer.className = 'flex items-center justify-between mb-2';
+
+                        // 表示開始日
+                        const startDateSpan = document.createElement('span');
+                        startDateSpan.className = 'text-xs font-bold text-gray-400';
+                        startDateSpan.textContent = `掲載日: ${announcement.startDate}`;
+
+                        // 更新日 (存在する場合のみ表示)
+                        const updatedDateSpan = document.createElement('span');
+                        updatedDateSpan.className = 'text-xs font-bold text-gray-500';
+                        if (announcement.updatedDate) {
+                            updatedDateSpan.textContent = `更新日: ${announcement.updatedDate}`;
+                        } else {
+                            // 更新日がない場合は非表示
+                            updatedDateSpan.textContent = '';
+                        }
+                        
+                        const contentP = document.createElement('p');
+                        contentP.innerHTML = announcement.content.replace(/\n/g, '<br>');
+
+                        dateContainer.appendChild(startDateSpan);
+                        dateContainer.appendChild(updatedDateSpan);
+                        
+                        listItem.appendChild(dateContainer);
+                        listItem.appendChild(contentP);
+                        announcementsList.appendChild(listItem);
+                    });
+                } else {
+                    announcementsList.innerHTML = '<li class="p-3 bg-gray-700 rounded-lg text-center">該当するお知らせはありません。</li>';
+                }
+            }
+
+            // フィルタリングボタンにイベントリスナーを追加
+            filterButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    displayAnnouncements(button.textContent);
+                });
+            });
+
+            fetchAnnouncements();
+        });
+    </script>
+
+</body>
+</html>
