@@ -1,40 +1,88 @@
 import React, { useState, useEffect } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, doc, onSnapshot, collection, addDoc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
 
-// Custom hook to use localStorage
-const useLocalStorage = (key, initialValue) => {
-  const [storedValue, setStoredValue] = useState(() => {
-    try {
-      const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
-    } catch (error) {
-      console.log(error);
-      return initialValue;
-    }
-  });
-
-  const setValue = (value) => {
-    try {
-      const valueToStore = value instanceof Function ? value(storedValue) : value;
-      setStoredValue(valueToStore);
-      window.localStorage.setItem(key, JSON.stringify(valueToStore));
-    } catch (error) {
-      console.log(error);
-    }
-  };
-  return [storedValue, setValue];
-};
-
-// Main App Component
 const App = () => {
-  const [announcements, setAnnouncements] = useLocalStorage('announcements', []);
+  // Use Firebase and user state
+  const [announcements, setAnnouncements] = useState([]);
   const [isManagerMode, setIsManagerMode] = useState(false);
-  const [isAdmin, setIsAdmin] = useLocalStorage('isAdmin', false);
-  const [adminKey, setAdminKey] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAuthReady, setIsAuthReady] = useState(false);
+  const [userId, setUserId] = useState(null);
   const [modal, setModal] = useState({ open: false, message: '', onConfirm: null });
+  const [db, setDb] = useState(null);
 
-  // NOTE: This is a simplified key for demonstration. In a real application,
-  // do not hardcode passwords. Use a secure authentication service like Firebase Auth.
-  const ADMIN_SECRET_KEY = 'admin123';
+  // Initialize Firebase and set up auth listener on mount
+  useEffect(() => {
+    try {
+      // Use the provided global variables for Firebase configuration and auth token
+      const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+      const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+      const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+      const app = initializeApp(firebaseConfig);
+      const firestoreDb = getFirestore(app);
+      const auth = getAuth(app);
+      setDb(firestoreDb);
+
+      // Listen for auth state changes
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          setUserId(user.uid);
+          // Simplified admin check: for this app, any authenticated user can be a manager.
+          // In a real app, you would check for a specific role or UID.
+          // The check `user.uid === 'admin-uid'` would be more secure.
+          setIsAdmin(true); 
+        } else {
+          setUserId(crypto.randomUUID());
+          setIsAdmin(false);
+        }
+        setIsAuthReady(true);
+      });
+
+      // Sign in with the custom token or anonymously
+      const signIn = async () => {
+        try {
+          if (initialAuthToken) {
+            await signInWithCustomToken(auth, initialAuthToken);
+          } else {
+            await signInAnonymously(auth);
+          }
+        } catch (error) {
+          console.error("Firebase Auth Error:", error);
+        }
+      };
+      signIn();
+
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Firebase Initialization Error:", error);
+    }
+  }, []);
+
+  // Fetch announcements from Firestore in real-time
+  useEffect(() => {
+    if (db && isAuthReady) {
+      const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+      const q = collection(db, `artifacts/${appId}/public/data/announcements`);
+
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const fetchedAnnouncements = [];
+        querySnapshot.forEach((doc) => {
+          fetchedAnnouncements.push({ ...doc.data(), id: doc.id });
+        });
+        // Sort announcements by publish date in descending order
+        fetchedAnnouncements.sort((a, b) => new Date(b.publish_date) - new Date(a.publish_date));
+        setAnnouncements(fetchedAnnouncements);
+      }, (error) => {
+        console.error("Firestore onSnapshot error:", error);
+        showModal('お知らせの取得中にエラーが発生しました。');
+      });
+
+      return () => unsubscribe();
+    }
+  }, [db, isAuthReady]);
 
   const showModal = (message, onConfirm = null) => {
     setModal({ open: true, message, onConfirm });
@@ -46,22 +94,6 @@ const App = () => {
 
   const toggleMode = () => {
     setIsManagerMode(!isManagerMode);
-  };
-
-  const handleAdminLogin = (e) => {
-    e.preventDefault();
-    if (!adminKey) {
-      // If the admin key is empty, do nothing and return.
-      return;
-    }
-
-    if (adminKey === ADMIN_SECRET_KEY) {
-      setIsAdmin(true);
-      // Removed the modal display on successful login
-    } else {
-      showModal('パスワードが正しくありません。');
-    }
-    setAdminKey('');
   };
 
   const socialLinks = [
@@ -86,7 +118,6 @@ const App = () => {
       description: '最新情報やリアルタイムな情報を発信しています。',
       imageUrl: 'https://placehold.co/400x400/000000/FFFFFF?text=X',
       url: 'https://x.com/AfterEffects_OK',
-      // Updated the icon to the new X logo using the provided SVG data
       iconUrl: 'data:image/svg+xml;utf8,<svg width="1200" height="1227" viewBox="0 0 1200 1227" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.137 519.284H714.163ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.854V687.828Z" fill="white"/></svg>',
       iconBgColor: '#000000',
     },
@@ -108,6 +139,20 @@ const App = () => {
     },
   ];
 
+  if (!isAuthReady) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-900 text-gray-100">
+        <div className="text-center">
+          <svg className="animate-spin h-10 w-10 text-blue-400 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p className="mt-4">読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-4 sm:p-8 font-sans">
       <div className="w-full max-w-6xl mx-auto">
@@ -116,6 +161,7 @@ const App = () => {
             講義ポータル
           </h1>
           <p className="text-lg text-gray-400">最新情報と便利なリンクをここに集約</p>
+          <p className="text-sm text-gray-500 mt-2">ユーザーID: {userId}</p>
           <div className="mt-6 flex flex-col items-center">
             {isAdmin && (
               <button
@@ -130,7 +176,7 @@ const App = () => {
 
         <main>
           {isManagerMode ? (
-            <AnnouncementManager announcements={announcements} setAnnouncements={setAnnouncements} showModal={showModal} />
+            <AnnouncementManager announcements={announcements} setAnnouncements={setAnnouncements} showModal={showModal} db={db} />
           ) : (
             <>
               <AnnouncementList announcements={announcements} />
@@ -162,35 +208,12 @@ const App = () => {
                   ))}
                 </div>
               </div>
-              {/* スクロールしてボタンを画面中央に表示するためのスペース */}
               <div className="h-64 sm:h-80"></div>
             </>
           )}
         </main>
       </div>
       
-      {/* 管理者ログインフォームを画面の右下に配置 */}
-      {!isAdmin && (
-        <div className="fixed bottom-4 right-4 flex items-center gap-2">
-          <form onSubmit={handleAdminLogin} className="flex items-center gap-2">
-            <input
-              type="password"
-              value={adminKey}
-              onChange={(e) => setAdminKey(e.target.value)}
-              placeholder="管理者キー"
-              className="bg-gray-700 text-gray-200 border border-gray-600 rounded-full py-1 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500 w-32 text-xs"
-            />
-          </form>
-          <button
-            onClick={handleAdminLogin}
-            className="text-gray-400 hover:text-gray-200 transition duration-300 text-sm font-semibold p-0"
-          >
-            ログイン
-          </button>
-        </div>
-      )}
-
-      {/* Custom Modal for alerts and confirmations */}
       {modal.open && (
         <div className="fixed inset-0 bg-gray-950 bg-opacity-80 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center">
@@ -234,7 +257,7 @@ const AnnouncementList = ({ announcements }) => {
           announcements
             .filter(announcement => {
               const today = new Date();
-              today.setHours(0, 0, 0, 0); 
+              today.setHours(0, 0, 0, 0);
               
               const publishDate = new Date(announcement.publish_date);
               publishDate.setHours(0, 0, 0, 0);
@@ -263,7 +286,7 @@ const AnnouncementList = ({ announcements }) => {
 };
 
 // AnnouncementManager Component (For admin view)
-const AnnouncementManager = ({ announcements, setAnnouncements, showModal }) => {
+const AnnouncementManager = ({ announcements, showModal, db }) => {
   const [editingAnnouncementId, setEditingAnnouncementId] = useState(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -299,40 +322,35 @@ const AnnouncementManager = ({ announcements, setAnnouncements, showModal }) => 
     return true;
   };
 
-  const handleSaveAnnouncement = () => {
+  const handleSaveAnnouncement = async () => {
     if (!validateForm()) return;
 
-    if (editingAnnouncementId) {
-      const updatedAnnouncements = announcements.map(announcement =>
-        announcement.id === editingAnnouncementId
-          ? {
-              ...announcement,
-              title,
-              content,
-              publish_date: publishDate,
-              end_date: endDate,
-              grades: grades.sort(),
-              last_updated_at: new Date().toLocaleString(),
-            }
-          : announcement
-      );
-      setAnnouncements(updatedAnnouncements);
-      showModal('お知らせが正常に更新されました。');
-    } else {
-      const newAnnouncement = {
-        id: Date.now(),
+    try {
+      const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+      const announcementData = {
         title,
         content,
         publish_date: publishDate,
         end_date: endDate,
         grades: grades.sort(),
-        created_at: new Date().toLocaleString(),
       };
-      const updated = [...announcements, newAnnouncement];
-      setAnnouncements(updated.sort((a, b) => new Date(b.publish_date) - new Date(a.publish_date)));
-      showModal('お知らせが正常に追加されました。');
+
+      if (editingAnnouncementId) {
+        const docRef = doc(db, `artifacts/${appId}/public/data/announcements`, editingAnnouncementId);
+        await setDoc(docRef, { ...announcementData, last_updated_at: new Date().toLocaleString() }, { merge: true });
+        showModal('お知らせが正常に更新されました。');
+      } else {
+        await addDoc(collection(db, `artifacts/${appId}/public/data/announcements`), {
+          ...announcementData,
+          created_at: new Date().toLocaleString(),
+        });
+        showModal('お知らせが正常に追加されました。');
+      }
+      resetForm();
+    } catch (e) {
+      console.error("Error adding/updating document: ", e);
+      showModal('お知らせの保存中にエラーが発生しました。');
     }
-    resetForm();
   };
 
   const handleEditClick = (announcement) => {
@@ -349,9 +367,15 @@ const AnnouncementManager = ({ announcements, setAnnouncements, showModal }) => 
     showModal('このお知らせを削除してもよろしいですか？', () => handleDeleteAnnouncement(id));
   };
 
-  const handleDeleteAnnouncement = (id) => {
-    setAnnouncements(prevAnnouncements => prevAnnouncements.filter(announcement => announcement.id !== id));
-    showModal('お知らせが正常に削除されました。');
+  const handleDeleteAnnouncement = async (id) => {
+    try {
+      const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+      await deleteDoc(doc(db, `artifacts/${appId}/public/data/announcements`, id));
+      showModal('お知らせが正常に削除されました。');
+    } catch (e) {
+      console.error("Error removing document: ", e);
+      showModal('お知らせの削除中にエラーが発生しました。');
+    }
     resetForm();
   };
 
@@ -366,21 +390,21 @@ const AnnouncementManager = ({ announcements, setAnnouncements, showModal }) => 
     endDate.setHours(23, 59, 59, 999);
     
     return today.getTime() >= publishDate.getTime() && today.getTime() <= endDate.getTime();
-  }).sort((a, b) => new Date(b.publish_date) - new Date(a.publish_date));
+  });
 
   const upcomingAnnouncements = announcements.filter(announcement => {
     const publishDate = new Date(announcement.publish_date);
     publishDate.setHours(0, 0, 0, 0);
 
     return publishDate.getTime() > today.getTime();
-  }).sort((a, b) => new Date(a.publish_date) - new Date(b.publish_date));
+  });
 
   const expiredAnnouncements = announcements.filter(announcement => {
     const endDate = new Date(announcement.end_date);
     endDate.setHours(23, 59, 59, 999);
     
     return endDate.getTime() < today.getTime();
-  }).sort((a, b) => new Date(b.end_date) - new Date(a.end_date));
+  });
 
   const AnnouncementListSection = ({ title, announcements, color }) => (
     <div className={`bg-gray-800 shadow-xl rounded-2xl p-6 sm:p-8 space-y-6 border-t-4 border-${color}-500`}>
@@ -436,7 +460,7 @@ const AnnouncementManager = ({ announcements, setAnnouncements, showModal }) => 
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-300">タイトル</label>
             <input type="text" id="title" value={title} onChange={(e) => setTitle(e.target.value)}
-                   className="mt-1 block w-full rounded-md border-gray-700 bg-gray-900 text-white shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border" />
+                    className="mt-1 block w-full rounded-md border-gray-700 bg-gray-900 text-white shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border" />
           </div>
           <div>
             <label htmlFor="content" className="block text-sm font-medium text-gray-300">内容</label>
@@ -446,12 +470,12 @@ const AnnouncementManager = ({ announcements, setAnnouncements, showModal }) => 
           <div>
             <label htmlFor="publishDate" className="block text-sm font-medium text-gray-300">掲載日</label>
             <input type="date" id="publishDate" value={publishDate} onChange={(e) => setPublishDate(e.target.value)}
-                   className="mt-1 block w-full rounded-md border-gray-700 bg-gray-900 text-white shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border" />
+                    className="mt-1 block w-full rounded-md border-gray-700 bg-gray-900 text-white shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border" />
           </div>
           <div>
             <label htmlFor="endDate" className="block text-sm font-medium text-gray-300">終了日</label>
             <input type="date" id="endDate" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                   className="mt-1 block w-full rounded-md border-gray-700 bg-gray-900 text-white shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border" />
+                    className="mt-1 block w-full rounded-md border-gray-700 bg-gray-900 text-white shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border" />
           </div>
         </div>
         <div>
@@ -460,7 +484,7 @@ const AnnouncementManager = ({ announcements, setAnnouncements, showModal }) => 
             {['1', '2', '3', '4'].map((grade) => (
               <label key={grade} className="inline-flex items-center">
                 <input type="checkbox" value={grade} checked={grades.includes(grade)} onChange={handleCheckboxChange}
-                       className="rounded text-blue-600 focus:ring-blue-500 bg-gray-800 border-gray-700" />
+                        className="rounded text-blue-600 focus:ring-blue-500 bg-gray-800 border-gray-700" />
                 <span className="ml-2 text-gray-300">{grade}年</span>
               </label>
             ))}
