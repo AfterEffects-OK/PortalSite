@@ -1,335 +1,491 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>講義ポータルサイト</title>
-    <!-- Tailwind CSS CDNを読み込み -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* フォントをGoogle FontsのInterに設定 */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #1a202c; /* ダークグレーの背景 */
-            color: #e2e8f0; /* 明るいテキストカラー */
-        }
-        /* ホバー時のアクションを滑らかにするためのトランジション */
-        .card-link {
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            position: relative;
-        }
-        /* マウスホバーでコメントを表示する機能 */
-        .card-link::before {
-            content: attr(data-comment); /* data-comment属性の内容を表示 */
-            position: absolute;
-            top: -32px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            white-space: nowrap;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-        }
-        .card-link:hover::before {
-            opacity: 1;
-        }
-        .filter-button.active {
-            background-color: #f59e0b;
-            color: #1a202c;
-        }
-    </style>
-</head>
-<body class="p-4 sm:p-8">
+import React, { useState, useEffect } from 'react';
 
-    <!-- ヘッダーセクション -->
-    <header class="text-center my-8">
-        <!-- タイトルと画像を中央に並べて配置 -->
-        <div class="flex items-center justify-center space-x-4">
-            <!-- 左側の画像: idとsrcを動的に設定 -->
-            <img id="header-left-img" src="" alt="左側の画像" class="h-16 w-16 rounded-full">
-            <h1 class="text-4xl sm:text-5xl font-extrabold text-amber-400">講義ポータルサイト</h1>
-            <!-- 右側の画像: idとsrcを動的に設定 -->
-            <img id="header-right-img" src="" alt="右側の画像" class="h-16 w-16 rounded-full">
+// Custom hook to use localStorage
+const useLocalStorage = (key, initialValue) => {
+  const [storedValue, setStoredValue] = useState(() => {
+    try {
+      const item = window.localStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch (error) {
+      console.log(error);
+      return initialValue;
+    }
+  });
+
+  const setValue = (value) => {
+    try {
+      const valueToStore = value instanceof Function ? value(storedValue) : value;
+      setStoredValue(valueToStore);
+      window.localStorage.setItem(key, JSON.stringify(valueToStore));
+    } catch (error) {
+      console.log(error);
+    }
+  };
+  return [storedValue, setValue];
+};
+
+// Main App Component
+const App = () => {
+  const [announcements, setAnnouncements] = useLocalStorage('announcements', []);
+  const [isManagerMode, setIsManagerMode] = useState(false);
+  const [isAdmin, setIsAdmin] = useLocalStorage('isAdmin', false);
+  const [adminKey, setAdminKey] = useState('');
+  const [modal, setModal] = useState({ open: false, message: '', onConfirm: null });
+
+  // NOTE: This is a simplified key for demonstration. In a real application,
+  // do not hardcode passwords. Use a secure authentication service like Firebase Auth.
+  const ADMIN_SECRET_KEY = 'admin123';
+
+  const showModal = (message, onConfirm = null) => {
+    setModal({ open: true, message, onConfirm });
+  };
+
+  const closeModal = () => {
+    setModal({ open: false, message: '', onConfirm: null });
+  };
+
+  const toggleMode = () => {
+    setIsManagerMode(!isManagerMode);
+  };
+
+  const handleAdminLogin = (e) => {
+    e.preventDefault();
+    if (!adminKey) {
+      // If the admin key is empty, do nothing and return.
+      return;
+    }
+
+    if (adminKey === ADMIN_SECRET_KEY) {
+      setIsAdmin(true);
+      // Removed the modal display on successful login
+    } else {
+      showModal('パスワードが正しくありません。');
+    }
+    setAdminKey('');
+  };
+
+  const socialLinks = [
+    {
+      title: 'YouTubeチャンネル',
+      description: '講義動画や関連コンテンツを配信しています。',
+      imageUrl: 'https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg',
+      url: 'https://www.youtube.com/@AfterEffects.kagisen',
+      iconUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M8 5v14l11-7z"/></svg>',
+      iconBgColor: '#FF0000',
+    },
+    {
+      title: 'Spotify Podcast',
+      description: '講義を要約して配信。すきま時間に聴いてください。',
+      imageUrl: 'https://placehold.co/400x400/1DB954/FFFFFF?text=Spotify',
+      url: 'https://open.spotify.com/show/4VLdSJkaNgk90wv5Lanh7K',
+      iconUrl: 'https://open.spotify.com/favicon.ico',
+      iconBgColor: '#FFFFFF',
+    },
+    {
+      title: 'X（旧Twitter）',
+      description: '最新情報やリアルタイムな情報を発信しています。',
+      imageUrl: 'https://placehold.co/400x400/000000/FFFFFF?text=X',
+      url: 'https://x.com/AfterEffects_OK',
+      // Updated the icon to the new X logo using the provided SVG data
+      iconUrl: 'data:image/svg+xml;utf8,<svg width="1200" height="1227" viewBox="0 0 1200 1227" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M714.163 519.284L1160.89 0H1055.03L667.137 450.887L357.328 0H0L468.492 681.821L0 1226.37H105.866L515.491 750.218L842.672 1226.37H1200L714.137 519.284H714.163ZM569.165 687.828L521.697 619.934L144.011 79.6944H306.615L611.412 515.685L658.88 583.579L1055.08 1150.3H892.476L569.165 687.854V687.828Z" fill="white"/></svg>',
+      iconBgColor: '#000000',
+    },
+    {
+      title: '作業報告フォーム',
+      description: '日々の学習進捗や課題の作業報告を提出します。',
+      imageUrl: 'https://placehold.co/400x400/0099ff/FFFFFF?text=Report',
+      url: 'https://forms.gle/',
+      iconUrl: 'https://www.gstatic.com/images/branding/product/2x/forms_2020q4_48dp.png',
+      iconBgColor: '#0099ff',
+    },
+    {
+      title: 'オタスケBOX',
+      description: '講義に関する質問はこちらからどうぞ。',
+      imageUrl: 'https://placehold.co/400x400/ff7799/FFFFFF?text=Form',
+      url: 'https://docs.google.com/forms/d/e/1FAIpQLScLwQewku7hDuuEfI_gjqGN--RIRwHBCWjle1tx83v4jSzDnw/viewform',
+      iconUrl: 'https://www.gstatic.com/images/branding/product/2x/forms_2020q4_48dp.png',
+      iconBgColor: '#ff7799',
+    },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-gray-100 p-4 sm:p-8 font-sans">
+      <div className="w-full max-w-6xl mx-auto">
+        <header className="py-8 text-center">
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-blue-400 leading-tight tracking-wide mb-2">
+            講義ポータル
+          </h1>
+          <p className="text-lg text-gray-400">最新情報と便利なリンクをここに集約</p>
+          <div className="mt-6 flex flex-col items-center">
+            {isAdmin && (
+              <button
+                onClick={toggleMode}
+                className="bg-blue-600 text-white font-semibold py-2 px-6 rounded-full shadow-lg hover:bg-blue-700 transition duration-300 transform hover:scale-105"
+              >
+                {isManagerMode ? 'ポータルサイトを表示' : '管理モードに切り替え'}
+              </button>
+            )}
+          </div>
+        </header>
+
+        <main>
+          {isManagerMode ? (
+            <AnnouncementManager announcements={announcements} setAnnouncements={setAnnouncements} showModal={showModal} />
+          ) : (
+            <>
+              <AnnouncementList announcements={announcements} />
+              <div className="mt-16 text-center">
+                <h2 className="text-3xl font-bold mb-6 text-blue-400">便利な外部リンク</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {socialLinks.map((link, index) => (
+                    <a
+                      key={index}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="relative block p-6 bg-gray-800 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 hover:scale-105 group overflow-hidden aspect-square flex flex-col justify-end"
+                    >
+                      <img src={link.imageUrl} alt={link.title} className="absolute inset-0 w-full h-full object-cover rounded-xl opacity-20 group-hover:opacity-30 transition-opacity" />
+                      <div className="relative z-10 text-left">
+                        <div className="flex items-center text-xl font-bold text-gray-50 mb-1 group-hover:text-blue-400">
+                          <div
+                            className="w-8 h-8 mr-2 rounded-full flex items-center justify-center shadow-lg transform transition-transform group-hover:scale-110"
+                            style={{ backgroundColor: link.iconBgColor }}
+                          >
+                            <img src={link.iconUrl} alt={`${link.title} Icon`} className="w-6 h-6" />
+                          </div>
+                          {link.title}
+                        </div>
+                        <p className="text-sm text-gray-400">{link.description}</p>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+              {/* スクロールしてボタンを画面中央に表示するためのスペース */}
+              <div className="h-64 sm:h-80"></div>
+            </>
+          )}
+        </main>
+      </div>
+      
+      {/* 管理者ログインフォームを画面の右下に配置 */}
+      {!isAdmin && (
+        <div className="fixed bottom-4 right-4 flex items-center gap-2">
+          <form onSubmit={handleAdminLogin} className="flex items-center gap-2">
+            <input
+              type="password"
+              value={adminKey}
+              onChange={(e) => setAdminKey(e.target.value)}
+              placeholder="管理者キー"
+              className="bg-gray-700 text-gray-200 border border-gray-600 rounded-full py-1 px-3 focus:outline-none focus:ring-1 focus:ring-blue-500 w-32 text-xs"
+            />
+          </form>
+          <button
+            onClick={handleAdminLogin}
+            className="text-gray-400 hover:text-gray-200 transition duration-300 text-sm font-semibold p-0"
+          >
+            ログイン
+          </button>
         </div>
-        <p class="mt-2 text-xl sm:text-2xl font-semibold">（科目名）</p>
-    </header>
+      )}
 
-    <!-- メインコンテンツグリッド -->
-    <main class="max-w-6xl mx-auto">
-        
-        <!-- お知らせセクション -->
-        <section class="bg-gray-800 p-6 sm:p-8 rounded-xl shadow-lg my-8">
-            <h2 class="text-3xl font-bold mb-4 text-amber-400">お知らせ</h2>
-
-            <!-- フィルタリングボタン -->
-            <div class="flex flex-wrap gap-2 mb-6">
-                <button id="filter-all" class="filter-button bg-gray-600 text-gray-200 px-4 py-2 rounded-lg font-semibold hover:bg-amber-400 hover:text-gray-900 transition-colors duration-200 active">全員</button>
-                <button id="filter-1st" class="filter-button bg-gray-600 text-gray-200 px-4 py-2 rounded-lg font-semibold hover:bg-amber-400 hover:text-gray-900 transition-colors duration-200">1年生</button>
-                <button id="filter-2nd" class="filter-button bg-gray-600 text-gray-200 px-4 py-2 rounded-lg font-semibold hover:bg-amber-400 hover:text-gray-900 transition-colors duration-200">2年生</button>
+      {/* Custom Modal for alerts and confirmations */}
+      {modal.open && (
+        <div className="fixed inset-0 bg-gray-950 bg-opacity-80 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center">
+            <h3 className="text-2xl font-bold text-gray-100 mb-4">通知</h3>
+            <p className="text-lg text-gray-300 mb-6">{modal.message}</p>
+            <div className="flex justify-center space-x-4">
+              {modal.onConfirm && (
+                <button
+                  onClick={() => {
+                    modal.onConfirm();
+                    closeModal();
+                  }}
+                  className="bg-red-600 text-white font-semibold py-3 px-6 rounded-full hover:bg-red-700 transition duration-300 shadow-md"
+                >
+                  はい
+                </button>
+              )}
+              <button
+                onClick={closeModal}
+                className="bg-blue-600 text-white font-semibold py-3 px-6 rounded-full hover:bg-blue-700 transition duration-300 shadow-md"
+              >
+                {modal.onConfirm ? 'いいえ' : '閉じる'}
+              </button>
             </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
-            <ul id="announcements-list" class="space-y-3 text-lg">
-                <li class="p-3 bg-gray-700 rounded-lg text-center">お知らせを読み込み中...</li>
-            </ul>
-        </section>
+// AnnouncementList Component (For public view)
+const AnnouncementList = ({ announcements }) => {
+  return (
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto">
+      <h2 className="text-3xl font-bold text-center mb-6 text-blue-400">最新のお知らせ</h2>
+      <div className="bg-gray-800 shadow-xl rounded-2xl p-6 sm:p-8 space-y-6">
+        {announcements.length === 0 ? (
+          <p className="text-center text-gray-500">現在、公開されているお知らせはありません。</p>
+        ) : (
+          announcements
+            .filter(announcement => {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0); 
+              
+              const publishDate = new Date(announcement.publish_date);
+              publishDate.setHours(0, 0, 0, 0);
 
-        <!-- リンク集セクション -->
-        <section class="bg-gray-800 p-6 sm:p-8 rounded-xl shadow-lg my-8">
-            <h2 class="text-3xl font-bold mb-4 text-amber-400">便利なリンク</h2>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              const endDate = new Date(announcement.end_date);
+              endDate.setHours(23, 59, 59, 999);
 
-                <!-- リンクカード：YouTube -->
-                <a href="https://www.youtube.com/@examplechannel" target="_blank" rel="noopener noreferrer"
-                   class="card-link bg-gray-700 rounded-xl overflow-hidden shadow-md hover:scale-105 hover:shadow-2xl transition-all duration-300"
-                   data-comment="講義の補足動画が見られます">
-                    <img id="youtube-img" src="" alt="YouTubeチャンネルの画像" class="w-full h-48 object-cover">
-                    <div class="p-4">
-                        <h3 class="font-bold text-xl mb-1 group-hover:text-amber-400">YouTube チャンネル</h3>
-                        <p class="text-gray-400 text-sm">講義内容の復習や予習に役立つ動画を配信しています。</p>
-                    </div>
-                </a>
-                
-                <!-- 新規追加：リンクカード：Spotify Podcast -->
-                <a href="https://open.spotify.com/show/yourpodcastlink" target="_blank" rel="noopener noreferrer"
-                   class="card-link bg-gray-700 rounded-xl overflow-hidden shadow-md hover:scale-105 hover:shadow-2xl transition-all duration-300"
-                   data-comment="音声で講義を聞き直せます">
-                    <img id="spotify-img" src="" alt="Spotify Podcastの画像" class="w-full h-48 object-cover">
-                    <div class="p-4">
-                        <h3 class="font-bold text-xl mb-1 group-hover:text-amber-400">Spotify Podcast</h3>
-                        <p class="text-gray-400 text-sm">講義内容を音声で解説しているポッドキャスト。移動中の予習復習にどうぞ。</p>
-                    </div>
-                </a>
+              return today.getTime() >= publishDate.getTime() && today.getTime() <= endDate.getTime();
+            })
+            .map((announcement) => (
+              <div key={announcement.id} className="bg-gray-700 p-6 rounded-xl shadow-sm border border-gray-600 transition-all duration-300 hover:shadow-lg hover:border-blue-500">
+                <p className="text-xs sm:text-sm text-blue-400 font-semibold mb-2">
+                  対象学年: {announcement.grades && announcement.grades.length > 0 ? announcement.grades.map(g => `${g}年生`).join(', ') : '未指定'}
+                </p>
+                <h3 className="text-xl sm:text-2xl font-bold text-gray-50 mb-4">{announcement.title}</h3>
+                <div className="border-t border-gray-600 pt-4">
+                  <p className="text-base text-gray-300 leading-relaxed whitespace-pre-wrap">{announcement.content}</p>
+                </div>
+                <p className="text-xs text-gray-500 mt-4 text-right">掲載日: {announcement.publish_date}</p>
+              </div>
+            ))
+        )}
+      </div>
+    </div>
+  );
+};
 
-                <!-- リンクカード：X (旧Twitter) -->
-                <a href="https://twitter.com/example_prof" target="_blank" rel="noopener noreferrer"
-                   class="card-link bg-gray-700 rounded-xl overflow-hidden shadow-md hover:scale-105 hover:shadow-2xl transition-all duration-300"
-                   data-comment="最新情報をチェックできます">
-                    <img id="x-img" src="" alt="Xアカウントの画像" class="w-full h-48 object-cover">
-                    <div class="p-4">
-                        <h3 class="font-bold text-xl mb-1 group-hover:text-amber-400">X (旧Twitter)</h3>
-                        <p class="text-gray-400 text-sm">休講情報や課題のヒントなど、リアルタイムな情報を発信。</p>
-                    </div>
-                </a>
-                
-                <!-- リンクカード：Google Forms -->
-                <a href="https://forms.gle/yourgoogleformlink" target="_blank" rel="noopener noreferrer"
-                   class="card-link bg-gray-700 rounded-xl overflow-hidden shadow-md hover:scale-105 hover:shadow-2xl transition-all duration-300"
-                   data-comment="質問や意見を送信できます">
-                    <img id="forms-img" src="" alt="Googleフォームの画像" class="w-full h-48 object-cover">
-                    <div class="p-4">
-                        <h3 class="font-bold text-xl mb-1 group-hover:text-amber-400">質問フォーム</h3>
-                        <p class="text-gray-400 text-sm">講義に関する質問やフィードバックはこちらからお願いします。</p>
-                    </div>
-                </a>
+// AnnouncementManager Component (For admin view)
+const AnnouncementManager = ({ announcements, setAnnouncements, showModal }) => {
+  const [editingAnnouncementId, setEditingAnnouncementId] = useState(null);
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [publishDate, setPublishDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [grades, setGrades] = useState([]);
 
-                <!-- リンクカード：講義資料 -->
-                <a href="https://drive.google.com/drive/folders/yourdrivefolder" target="_blank" rel="noopener noreferrer"
-                   class="card-link bg-gray-700 rounded-xl overflow-hidden shadow-md hover:scale-105 hover:shadow-2xl transition-all duration-300"
-                   data-comment="講義資料をダウンロードできます">
-                    <img id="materials-img" src="" alt="講義資料の画像" class="w-full h-48 object-cover">
-                    <div class="p-4">
-                        <h3 class="font-bold text-xl mb-1 group-hover:text-amber-400">講義資料</h3>
-                        <p class="text-gray-400 text-sm">PDF形式のスライドや配布資料はこちらからアクセスしてください。</p>
-                    </div>
-                </a>
+  const handleCheckboxChange = (e) => {
+    const { value, checked } = e.target;
+    setGrades(prevGrades =>
+      checked ? [...prevGrades, value] : prevGrades.filter(grade => grade !== value)
+    );
+  };
 
-                <!-- リンクカード：シラバス -->
-                <a href="https://syllabus.univ.ac.jp/yoursyllabuslink" target="_blank" rel="noopener noreferrer"
-                   class="card-link bg-gray-700 rounded-xl overflow-hidden shadow-md hover:scale-105 hover:shadow-2xl transition-all duration-300"
-                   data-comment="講義計画の詳細を確認できます">
-                    <img id="syllabus-img" src="" alt="シラバスの画像" class="w-full h-48 object-cover">
-                    <div class="p-4">
-                        <h3 class="font-bold text-xl mb-1 group-hover:text-amber-400">シラバス</h3>
-                        <p class="text-gray-400 text-sm">授業の目標、評価方法、年間計画などが確認できます。</p>
-                    </div>
-                </a>
+  const resetForm = () => {
+    setTitle('');
+    setContent('');
+    setPublishDate('');
+    setEndDate('');
+    setGrades([]);
+    setEditingAnnouncementId(null);
+  };
 
+  const validateForm = () => {
+    if (!title || !content || !publishDate || !endDate || grades.length === 0) {
+      showModal('すべての項目を入力してください。');
+      return false;
+    }
+    if (new Date(endDate).getTime() < new Date(publishDate).getTime()) {
+      showModal('終了日は掲載日より後の日付を選択してください。');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSaveAnnouncement = () => {
+    if (!validateForm()) return;
+
+    if (editingAnnouncementId) {
+      const updatedAnnouncements = announcements.map(announcement =>
+        announcement.id === editingAnnouncementId
+          ? {
+              ...announcement,
+              title,
+              content,
+              publish_date: publishDate,
+              end_date: endDate,
+              grades: grades.sort(),
+              last_updated_at: new Date().toLocaleString(),
+            }
+          : announcement
+      );
+      setAnnouncements(updatedAnnouncements);
+      showModal('お知らせが正常に更新されました。');
+    } else {
+      const newAnnouncement = {
+        id: Date.now(),
+        title,
+        content,
+        publish_date: publishDate,
+        end_date: endDate,
+        grades: grades.sort(),
+        created_at: new Date().toLocaleString(),
+      };
+      const updated = [...announcements, newAnnouncement];
+      setAnnouncements(updated.sort((a, b) => new Date(b.publish_date) - new Date(a.publish_date)));
+      showModal('お知らせが正常に追加されました。');
+    }
+    resetForm();
+  };
+
+  const handleEditClick = (announcement) => {
+    setTitle(announcement.title);
+    setContent(announcement.content);
+    setPublishDate(announcement.publish_date);
+    setEndDate(announcement.end_date);
+    setGrades(announcement.grades);
+    setEditingAnnouncementId(announcement.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteConfirmation = (id) => {
+    showModal('このお知らせを削除してもよろしいですか？', () => handleDeleteAnnouncement(id));
+  };
+
+  const handleDeleteAnnouncement = (id) => {
+    setAnnouncements(prevAnnouncements => prevAnnouncements.filter(announcement => announcement.id !== id));
+    showModal('お知らせが正常に削除されました。');
+    resetForm();
+  };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const activeAnnouncements = announcements.filter(announcement => {
+    const publishDate = new Date(announcement.publish_date);
+    publishDate.setHours(0, 0, 0, 0);
+
+    const endDate = new Date(announcement.end_date);
+    endDate.setHours(23, 59, 59, 999);
+    
+    return today.getTime() >= publishDate.getTime() && today.getTime() <= endDate.getTime();
+  }).sort((a, b) => new Date(b.publish_date) - new Date(a.publish_date));
+
+  const upcomingAnnouncements = announcements.filter(announcement => {
+    const publishDate = new Date(announcement.publish_date);
+    publishDate.setHours(0, 0, 0, 0);
+
+    return publishDate.getTime() > today.getTime();
+  }).sort((a, b) => new Date(a.publish_date) - new Date(b.publish_date));
+
+  const expiredAnnouncements = announcements.filter(announcement => {
+    const endDate = new Date(announcement.end_date);
+    endDate.setHours(23, 59, 59, 999);
+    
+    return endDate.getTime() < today.getTime();
+  }).sort((a, b) => new Date(b.end_date) - new Date(a.end_date));
+
+  const AnnouncementListSection = ({ title, announcements, color }) => (
+    <div className={`bg-gray-800 shadow-xl rounded-2xl p-6 sm:p-8 space-y-6 border-t-4 border-${color}-500`}>
+      <h3 className="text-xl sm:text-2xl font-bold mb-4 text-gray-100">{title} ({announcements.length})</h3>
+      <div className="space-y-4">
+        {announcements.length === 0 ? (
+          <p className="text-center text-gray-500">現在、{title}のお知らせはありません。</p>
+        ) : (
+          announcements.map((announcement) => (
+            <div key={announcement.id} className="bg-gray-700 p-4 rounded-xl shadow-sm border border-gray-600">
+              <div className="flex justify-between items-start flex-col sm:flex-row">
+                <div className="mb-4 sm:mb-0">
+                  <h4 className="font-medium text-gray-100 text-lg">{announcement.title}</h4>
+                  <p className="text-sm text-gray-400">
+                    対象学年: {announcement.grades && announcement.grades.length > 0 ? announcement.grades.map(g => `${g}年生`).join(', ') : '未指定'}
+                  </p>
+                  <p className="text-sm text-gray-400">掲載期間: {announcement.publish_date} 〜 {announcement.end_date}</p>
+                  {announcement.created_at && (
+                    <p className="text-xs text-gray-500">作成日時: {announcement.created_at}</p>
+                  )}
+                  {announcement.last_updated_at && (
+                    <p className="text-xs text-gray-500">最終更新日時: {announcement.last_updated_at}</p>
+                  )}
+                </div>
+                <div className="flex space-x-2 flex-shrink-0">
+                  <button onClick={() => handleEditClick(announcement)}
+                          className="bg-yellow-500 text-white text-xs font-bold w-20 h-8 rounded-full hover:bg-yellow-600 transition duration-300 flex items-center justify-center">
+                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                    編集
+                  </button>
+                  <button onClick={() => handleDeleteConfirmation(announcement.id)}
+                          className="bg-red-500 text-white text-xs font-bold w-20 h-8 rounded-full hover:bg-red-600 transition duration-300 flex items-center justify-center">
+                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 2 0 00-1 1v3M4 7h16"></path></svg>
+                    削除
+                  </button>
+                </div>
+              </div>
+              <div className="border-t border-gray-600 pt-2 mt-2">
+                <p className="text-gray-300 leading-relaxed whitespace-pre-wrap text-sm">{announcement.content}</p>
+              </div>
             </div>
-        </section>
+          ))
+        )}
+      </div>
+    </div>
+  );
 
-    </main>
+  return (
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-12">
+      <div className="bg-gray-800 shadow-xl rounded-2xl p-6 sm:p-8 space-y-6">
+        <h3 className="text-2xl font-bold text-gray-100 text-center">{editingAnnouncementId ? 'お知らせを編集' : '新しいお知らせを追加'}</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label htmlFor="title" className="block text-sm font-medium text-gray-300">タイトル</label>
+            <input type="text" id="title" value={title} onChange={(e) => setTitle(e.target.value)}
+                   className="mt-1 block w-full rounded-md border-gray-700 bg-gray-900 text-white shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border" />
+          </div>
+          <div>
+            <label htmlFor="content" className="block text-sm font-medium text-gray-300">内容</label>
+            <textarea id="content" value={content} onChange={(e) => setContent(e.target.value)}
+                      className="mt-1 block w-full rounded-md border-gray-700 bg-gray-900 text-white shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border" rows="3"></textarea>
+          </div>
+          <div>
+            <label htmlFor="publishDate" className="block text-sm font-medium text-gray-300">掲載日</label>
+            <input type="date" id="publishDate" value={publishDate} onChange={(e) => setPublishDate(e.target.value)}
+                   className="mt-1 block w-full rounded-md border-gray-700 bg-gray-900 text-white shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border" />
+          </div>
+          <div>
+            <label htmlFor="endDate" className="block text-sm font-medium text-gray-300">終了日</label>
+            <input type="date" id="endDate" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+                   className="mt-1 block w-full rounded-md border-gray-700 bg-gray-900 text-white shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 border" />
+          </div>
+        </div>
+        <div>
+          <span className="block text-sm font-medium text-gray-300 mb-2">対象学年</span>
+          <div className="flex flex-wrap gap-4">
+            {['1', '2', '3', '4'].map((grade) => (
+              <label key={grade} className="inline-flex items-center">
+                <input type="checkbox" value={grade} checked={grades.includes(grade)} onChange={handleCheckboxChange}
+                       className="rounded text-blue-600 focus:ring-blue-500 bg-gray-800 border-gray-700" />
+                <span className="ml-2 text-gray-300">{grade}年</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+          <button onClick={handleSaveAnnouncement}
+                  className="flex-1 bg-blue-600 text-white font-semibold py-3 rounded-lg shadow-md hover:bg-blue-700 transition duration-300 transform hover:scale-105">
+            {editingAnnouncementId ? 'お知らせを更新' : 'お知らせを追加'}
+          </button>
+          {editingAnnouncementId && (
+            <button onClick={resetForm}
+                    className="flex-1 bg-gray-600 text-gray-100 font-semibold py-3 rounded-lg shadow-md hover:bg-gray-700 transition duration-300 transform hover:scale-105">
+              編集をキャンセル
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="space-y-8">
+        <AnnouncementListSection title="掲載中" announcements={activeAnnouncements} color="green" />
+        <AnnouncementListSection title="掲載準備中" announcements={upcomingAnnouncements} color="blue" />
+        <AnnouncementListSection title="掲載終了" announcements={expiredAnnouncements} color="gray" />
+      </div>
+    </div>
+  );
+};
 
-    <!-- フッター -->
-    <footer class="text-center text-gray-500 text-sm mt-12 mb-4">
-        <p>&copy; 2024 （講義名） All Rights Reserved.</p>
-    </footer>
-
-    <!-- スプレッドシートからお知らせを読み込むJavaScript -->
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // ここにスプレッドシートID、APIキー、および画像IDを設定
-            const SPREADSHEET_ID = '1D4RWhwWAfZpDJ6PZCco8S3Pa2qhfq3IOafST_l52a5E';
-            const API_KEY = 'AIzaSyALQKgx-MON76EkAYTz55XAFnNee-MtH4I';
-
-            // 講義ポータルサイトの各画像のGoogle DriveファイルID
-            const IMAGE_FILE_IDS = {
-                // ヘッダー画像のID
-                headerLeft: 'YOUR_HEADER_LEFT_IMAGE_ID',
-                headerRight: 'YOUR_HEADER_RIGHT_IMAGE_ID',
-                // リンクカード画像のID
-                youtube: 'YOUR_YOUTUBE_IMAGE_ID',
-                spotify: 'YOUR_SPOTIFY_IMAGE_ID',
-                x: 'YOUR_X_IMAGE_ID',
-                forms: 'YOUR_FORMS_IMAGE_ID',
-                materials: 'YOUR_MATERIALS_IMAGE_ID',
-                syllabus: 'YOUR_SYLLABUS_IMAGE_ID'
-            };
-            
-            // Google DriveのファイルIDから直接表示用URLを生成する関数
-            const getDriveDirectUrl = (fileId) => {
-                // プレースホルダーの場合はプレースホルダー画像URLを返す
-                const placeholderIds = Object.values(IMAGE_FILE_IDS);
-                if (!fileId || placeholderIds.includes(fileId)) {
-                    const placeholder = `https://placehold.co/600x400/8b5cf6/ffffff?text=${Object.keys(IMAGE_FILE_IDS).find(key => IMAGE_FILE_IDS[key] === fileId) || 'Image'}`;
-                    return placeholder;
-                }
-                return `https://drive.google.com/uc?export=view&id=${fileId}`;
-            };
-
-            // HTML内のimgタグにIDを設定
-            document.getElementById('header-left-img').src = getDriveDirectUrl(IMAGE_FILE_IDS.headerLeft);
-            document.getElementById('header-right-img').src = getDriveDirectUrl(IMAGE_FILE_IDS.headerRight);
-            document.getElementById('youtube-img').src = getDriveDirectUrl(IMAGE_FILE_IDS.youtube);
-            document.getElementById('spotify-img').src = getDriveDirectUrl(IMAGE_FILE_IDS.spotify);
-            document.getElementById('x-img').src = getDriveDirectUrl(IMAGE_FILE_IDS.x);
-            document.getElementById('forms-img').src = getDriveDirectUrl(IMAGE_FILE_IDS.forms);
-            document.getElementById('materials-img').src = getDriveDirectUrl(IMAGE_FILE_IDS.materials);
-            document.getElementById('syllabus-img').src = getDriveDirectUrl(IMAGE_FILE_IDS.syllabus);
-
-            // スプレッドシートからお知らせを読み込む範囲を指定 (AppSheet IDと表示期間、更新日を追加)
-            const RANGE = 'Sheet1!A2:G';
-            const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${RANGE}?key=${API_KEY}`;
-
-            const announcementsList = document.getElementById('announcements-list');
-            const filterButtons = document.querySelectorAll('.filter-button');
-            let allAnnouncements = [];
-
-
-            // お知らせをスプレッドシートから取得し、保存する関数
-            async function fetchAnnouncements() {
-                try {
-                    const response = await fetch(url);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-                    const data = await response.json();
-                    
-                    if (data.values && data.values.length > 0) {
-                        // 取得したデータをallAnnouncementsに保存
-                        allAnnouncements = data.values.map(row => ({
-                            // スプレッドシートの列とデータ属性を対応付け
-                            appSheetId: row[0],
-                            date: row[1], // B列
-                            content: row[2],
-                            grade: row[3] || '全員', // 学年がない場合は「全員」とする
-                            startDate: row[4], // E列
-                            endDate: row[5],
-                            updatedDate: row[6] // G列
-                        }));
-                        displayAnnouncements('全員'); // 初期表示は「全員」
-                    } else {
-                        announcementsList.innerHTML = '<li class="p-3 bg-gray-700 rounded-lg text-center">現在、お知らせはありません。</li>';
-                    }
-                } catch (error) {
-                    console.error('Failed to fetch announcements:', error);
-                    announcementsList.innerHTML = `<li class="p-3 bg-red-900 text-red-300 rounded-lg text-center">お知らせの読み込みに失敗しました。</li>`;
-                }
-            }
-
-            // お知らせをフィルタリングして表示する関数
-            function displayAnnouncements(filter) {
-                // ボタンのアクティブ状態を更新
-                filterButtons.forEach(button => {
-                    if (button.textContent === filter) {
-                        button.classList.add('active');
-                    } else {
-                        button.classList.remove('active');
-                    }
-                });
-
-                // 既存のリストをクリア
-                announcementsList.innerHTML = '';
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-
-                // フィルタリング
-                const filteredAnnouncements = allAnnouncements.filter(announcement => {
-                    // ①学年でフィルタリング
-                    const announcementGrade = announcement.grade.trim();
-                    const gradeMatch = (filter === '全員' || announcementGrade === filter);
-                    
-                    // ②表示期間でフィルタリング
-                    // YYYY/MM/DD形式をYYYY-MM-DDに変換
-                    const formattedStartDate = announcement.startDate ? announcement.startDate.replace(/\//g, '-') : '';
-                    const formattedEndDate = announcement.endDate ? announcement.endDate.replace(/\//g, '-') : '';
-
-                    const startDate = formattedStartDate ? new Date(formattedStartDate) : null;
-                    const endDate = formattedEndDate ? new Date(formattedEndDate) : null;
-                    
-                    if (endDate) {
-                        // 終了日の時刻を23:59:59に設定して、終了日当日も表示されるようにする
-                        endDate.setHours(23, 59, 59, 999);
-                    }
-                    
-                    const dateMatch = (startDate && endDate) ? (today >= startDate && today <= endDate) : true;
-                    
-                    return gradeMatch && dateMatch;
-                });
-                
-                if (filteredAnnouncements.length > 0) {
-                    filteredAnnouncements.forEach(announcement => {
-                        const listItem = document.createElement('li');
-                        listItem.className = 'p-3 bg-gray-700 rounded-lg';
-                        
-                        // 日付と更新日を表示するコンテナ
-                        const dateContainer = document.createElement('div');
-                        dateContainer.className = 'flex items-center justify-between mb-2';
-
-                        // 表示開始日
-                        const startDateSpan = document.createElement('span');
-                        startDateSpan.className = 'text-xs font-bold text-gray-400';
-                        startDateSpan.textContent = `掲載日: ${announcement.startDate}`;
-
-                        // 更新日 (存在する場合のみ表示)
-                        const updatedDateSpan = document.createElement('span');
-                        updatedDateSpan.className = 'text-xs font-bold text-gray-500';
-                        if (announcement.updatedDate) {
-                            updatedDateSpan.textContent = `更新日: ${announcement.updatedDate}`;
-                        } else {
-                            // 更新日がない場合は非表示
-                            updatedDateSpan.textContent = '';
-                        }
-                        
-                        const contentP = document.createElement('p');
-                        contentP.innerHTML = announcement.content.replace(/\n/g, '<br>');
-
-                        dateContainer.appendChild(startDateSpan);
-                        dateContainer.appendChild(updatedDateSpan);
-                        
-                        listItem.appendChild(dateContainer);
-                        listItem.appendChild(contentP);
-                        announcementsList.appendChild(listItem);
-                    });
-                } else {
-                    announcementsList.innerHTML = '<li class="p-3 bg-gray-700 rounded-lg text-center">該当するお知らせはありません。</li>';
-                }
-            }
-
-            // フィルタリングボタンにイベントリスナーを追加
-            filterButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    displayAnnouncements(button.textContent);
-                });
-            });
-
-            fetchAnnouncements();
-        });
-    </script>
-
-</body>
-</html>
+export default App;
